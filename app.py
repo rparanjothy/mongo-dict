@@ -1,38 +1,55 @@
 import collections.abc
+import pymongo
 
 
 class Repository(object):
     """
-    this is like a fake DB
+    Now connects to local mongo
     """
 
-    def __init__(self, data):
-        self.data = {**data}
+    def __init__(self, schema, collection):
+        # create connection to Mongo for that schema
+        client = pymongo.MongoClient()
+        db = client[schema]
+        self.collection = db[collection]
 
     def find(self):
-        return self.data.items()
+        return self.collection.find()
 
     def findOne(self, x):
-        print(f'I am value of {x}')
-        return self.data[x]
+        return self.collection.find_one({'_id': x})
 
     def deleteOne(self, x):
-        del self.data[x]
-        return f'Deleted {x}'
+        # del self.data[x]
+        result = self.collection.delete_one({'_id': x})
+        print(f'Deleted {x}')
+        return result
 
     def updateOne(self, k, v):
-        self.data.update({k: v})
-        return f'{k} updated to {self.data[k]}'
+        print(f'{k} updated to {v}')
+        result = self.collection.update_one(
+            {'_id': k}, {'$set': v}, upsert=True)
+        print(result.raw_result, result.modified_count, result.upserted_id)
+        return v
 
 
 class MongoDict(collections.abc.MutableMapping):
+    def __init__(self, schema, collection):
+        self.repository = Repository(schema, collection)
+        self.schema = schema
+        self.collection = collection
+
+    @property
+    def data(self):
+        return self.repository.find()
+
     def __len__(self):
         print('I am length')
         return len(self.data)
 
     def __iter__(self):
         print('I am iter')
-        return iter(map(lambda x: x[0], self.data))
+        return map(lambda x: x["_id"], self.data)
 
     def __getitem__(self, key):
         print(f'Fetching key {key}')
@@ -46,14 +63,10 @@ class MongoDict(collections.abc.MutableMapping):
         print(f'Setting {key} to {value}')
         self.repository.updateOne(key, value)
 
-    def __init__(self, schema):
-        self.repository = Repository({'a': 1, 'b': 2})
-        self.schema = schema
-        self.data = self.repository.find()
-
     def __repr__(self):
-        return f'{self.schema} - {str([{k: v} for k, v in self.data])}'
+        return f'{self.schema}:{self.collection} - {len(list(self.repository.find()))} documents'
 
 
 if __name__ == "__main__":
-    m = MongoDict('people')
+    m = MongoDict('cars', 'cars')
+    c = MongoDict('cars', 'mycars')
