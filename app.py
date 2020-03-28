@@ -46,10 +46,14 @@ class MongoDict(collections.abc.MutableMapping):
         print(f'Setting {key} to {value}')
         self.repository.updateOne(key, value)
 
-    def __init__(self):
+    def __init__(self, schema):
         self.repository = Repository({'a': 1, 'b': 2})
+        self.schema = schema
         self.data = self.repository.find()
+
+    def __repr__(self):
+        return f'{self.schema} - {str([{k: v} for k, v in self.data])}'
 
 
 if __name__ == "__main__":
-    m = MongoDict()
+    m = MongoDict('people')
